@@ -1,14 +1,37 @@
 const express = require("express");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const path = require("path");
+const bodyParser = require("body-parser");
+const session = require("express-session");
+const errorHandler = require("errorhandler");
+
+mongoose.promise = global.Promise;
 
 require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 5000;
 
+const isProduction = process.env.NODE_ENV === "production";
+
 app.use(cors());
-app.use(express.json());
+app.use(require("morgan")("dev"));
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, "public")));
+app.use(
+  session({
+    secret: "passport-tutorial",
+    cookie: { maxAge: 60000 },
+    resave: false,
+    saveUninitialized: false
+  })
+);
+
+if (!isProduction) {
+  app.use(errorHandler());
+}
 
 const uri = process.env.ATLAS_URI;
 mongoose.connect(uri, {
@@ -22,11 +45,33 @@ connection.once("open", () => {
   console.log("MongoDB database connection established successfully");
 });
 
-const exercisesRouter = require("./routes/exercises");
-const usersRouter = require("./routes/users");
+require("./models/users.model");
+require("./config/passport");
+app.use(require("./routes"));
 
-app.use("/exercises", exercisesRouter);
-app.use("/users", usersRouter);
+if (!isProduction) {
+  app.use((err, req, res) => {
+    res.status(err.status || 500);
+
+    res.json({
+      errors: {
+        message: err.message,
+        error: err
+      }
+    });
+  });
+}
+
+app.use((err, req, res) => {
+  res.status(err.status || 500);
+
+  res.json({
+    errors: {
+      message: err.message,
+      error: err
+    }
+  });
+});
 
 app.listen(port, () => {
   console.log(`Server is running on port: ${port}`);

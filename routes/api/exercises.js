@@ -1,6 +1,6 @@
 const router = require("express").Router();
 
-let Exercise = require("../models/exercise.model");
+let Exercise = require("../../models/exercise.model");
 
 //List All Exercises
 router.route("/").get((req, res) => {
